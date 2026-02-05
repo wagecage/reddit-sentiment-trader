@@ -12,10 +12,13 @@ class RedditScraper:
     def __init__(self, api_token: str = None):
         """Initialize the scraper with Apify API token."""
         self.api_token = api_token or os.getenv('APIFY_API_TOKEN')
-        if not self.api_token:
-            raise ValueError("APIFY_API_TOKEN is required")
 
-        self.client = ApifyClient(self.api_token)
+        # Only initialize client if token is available
+        if self.api_token:
+            self.client = ApifyClient(self.api_token)
+        else:
+            self.client = None
+            print("Warning: APIFY_API_TOKEN not set, will use mock data")
 
     def scrape_subreddit(self, subreddit: str, max_posts: int = 50) -> List[Dict[str, Any]]:
         """
@@ -29,6 +32,10 @@ class RedditScraper:
             List of post dictionaries with title, content, score, etc.
         """
         print(f"Scraping r/{subreddit}...")
+
+        # Use mock data if no API token
+        if not self.client:
+            return self._get_mock_data(subreddit, max_posts)
 
         # Use Apify's Reddit Scraper actor
         # Actor ID: trudax/reddit-scraper or vaclavrut/reddit-scraper

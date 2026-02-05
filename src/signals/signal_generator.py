@@ -103,9 +103,6 @@ class SignalGenerator:
         Returns:
             List of trading signals
         """
-        from ..analyzers import SentimentAnalyzer
-
-        analyzer = SentimentAnalyzer()
         signals = []
 
         # Auto-detect assets if not specified
@@ -117,13 +114,75 @@ class SignalGenerator:
 
         # Generate signal for each asset
         for asset in target_assets:
-            aggregated = analyzer.aggregate_sentiment(analyzed_posts, asset)
+            aggregated = self._aggregate_sentiment(analyzed_posts, asset)
             signal = self.generate_signal(aggregated)
 
             if signal:
                 signals.append(signal)
 
         return signals
+
+    def _aggregate_sentiment(self, analyzed_posts: List[Dict[str, Any]],
+                            asset: str = None) -> Dict[str, Any]:
+        """
+        Aggregate sentiment across multiple posts (internal helper).
+
+        Args:
+            analyzed_posts: List of posts with sentiment analysis
+            asset: Optional asset to filter by (e.g., "BTC", "ETH")
+
+        Returns:
+            Aggregated sentiment metrics
+        """
+        # Filter by asset if specified
+        if asset:
+            relevant_posts = [
+                p for p in analyzed_posts
+                if asset.upper() in [a.upper() for a in p.get('mentioned_assets', [])]
+            ]
+        else:
+            relevant_posts = analyzed_posts
+
+        if not relevant_posts:
+            return {
+                'asset': asset or 'ALL',
+                'post_count': 0,
+                'avg_sentiment_score': 0.0,
+                'bullish_count': 0,
+                'bearish_count': 0,
+                'neutral_count': 0,
+                'avg_confidence': 0.0,
+                'weighted_sentiment': 0.0
+            }
+
+        # Calculate metrics
+        total_posts = len(relevant_posts)
+        bullish_count = sum(1 for p in relevant_posts if p['sentiment'] == 'bullish')
+        bearish_count = sum(1 for p in relevant_posts if p['sentiment'] == 'bearish')
+        neutral_count = sum(1 for p in relevant_posts if p['sentiment'] == 'neutral')
+
+        avg_sentiment_score = sum(p['sentiment_score'] for p in relevant_posts) / total_posts
+        avg_confidence = sum(p['confidence'] for p in relevant_posts) / total_posts
+
+        # Weighted sentiment (considering post score as weight)
+        total_weight = sum(max(p.get('score', 1), 1) for p in relevant_posts)
+        weighted_sentiment = sum(
+            p['sentiment_score'] * max(p.get('score', 1), 1)
+            for p in relevant_posts
+        ) / total_weight if total_weight > 0 else 0.0
+
+        return {
+            'asset': asset or 'ALL',
+            'post_count': total_posts,
+            'avg_sentiment_score': avg_sentiment_score,
+            'bullish_count': bullish_count,
+            'bearish_count': bearish_count,
+            'neutral_count': neutral_count,
+            'bullish_pct': (bullish_count / total_posts * 100) if total_posts > 0 else 0,
+            'bearish_pct': (bearish_count / total_posts * 100) if total_posts > 0 else 0,
+            'avg_confidence': avg_confidence,
+            'weighted_sentiment': weighted_sentiment
+        }
 
     def should_enter_trade(self, signal: Dict[str, Any],
                           existing_positions: List[str] = None) -> bool:
