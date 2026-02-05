@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: reddit-sentiment-trader
+    env: docker
+    plan: free
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: APIFY_API_TOKEN
+        sync: false
+      - key: REDDIT_SUBREDDITS
+        value: CryptoCurrency,Bitcoin,ethereum
+      - key: MIN_CONFIDENCE_SCORE
+        value: "0.6"
+      - key: MAX_POSTS_PER_SCRAPE
+        value: "50"
+      - key: DATABASE_PATH
+        value: /opt/render/project/src/data/trading.db
+      - key: PORT
+        value: "8080"
